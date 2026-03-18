@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+
+message A {
+  string Source = 1;
+  string PlainString = 2;
+  uint32 IntValue = 3;
+}
+

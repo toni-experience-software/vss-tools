@@ -9,6 +9,7 @@
 # Convert vspec file to proto
 #
 
+import re
 import sys
 from io import TextIOWrapper
 from pathlib import Path
@@ -46,7 +47,9 @@ def init_package_file(path: Path, package_name: str):
         f.write(f"package {package_name};\n\n")
 
 
-def traverse_data_type_tree(tree: VSSNode, static_uid: bool, add_optional: bool, include_comments: bool, out_dir: Path):
+def traverse_data_type_tree(
+    tree: VSSNode, static_uid: bool, add_optional: bool, include_comments: bool, generate_enums: bool, out_dir: Path
+):
     """
     All structs in a branch are written to a single .proto file.
     The file's base name is same as the branch's name
@@ -90,7 +93,7 @@ def traverse_data_type_tree(tree: VSSNode, static_uid: bool, add_optional: bool,
             if include_comments:
                 write_comment(fd, node, indent="")
             fd.write(f"message {struct_path.name} {{" + "\n")
-            print_messages(node.children, fd, static_uid, add_optional, include_comments)
+            print_messages(node.children, fd, static_uid, add_optional, include_comments, generate_enums)
             fd.write("}\n\n")
             log.info(f"Wrote {struct_path.name} to {out_file}")
 
@@ -101,6 +104,7 @@ def traverse_signal_tree(
     static_uid: bool,
     add_optional: bool,
     include_comments: bool,
+    generate_enums: bool,
 ):
     fd.write('syntax = "proto3";\n\n')
 
@@ -118,7 +122,7 @@ def traverse_signal_tree(
         if include_comments:
             write_comment(fd, node, indent="")
         fd.write(f"message {node.get_fqn('')} {{" + "\n")
-        print_messages(node.children, fd, static_uid, add_optional, include_comments)
+        print_messages(node.children, fd, static_uid, add_optional, include_comments, generate_enums)
         fd.write("}\n\n")
 
 
@@ -162,14 +166,47 @@ def write_comment(fd: TextIOWrapper, node: VSSNode, indent: str = "  "):
             fd.write(f"{indent}// {line}\n")
 
 
+def _to_screaming_snake_case(name: str) -> str:
+    """Convert PascalCase/camelCase to SCREAMING_SNAKE_CASE."""
+    s = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name)
+    s = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", s)
+    return s.upper()
+
+
+def write_enum(fd: TextIOWrapper, node: VSSNode, indent: str = "  "):
+    """Write a protobuf enum definition for a string field with allowed values."""
+    if not isinstance(node.data, VSSDataDatatype) or node.data.allowed is None:
+        return
+    prefix = _to_screaming_snake_case(node.name)
+    fd.write(f"{indent}enum {node.name} {{\n")
+    fd.write(f"{indent}  {prefix}_UNSPECIFIED = 0;\n")
+    for i, value in enumerate(node.data.allowed, 1):
+        fd.write(f"{indent}  {prefix}_{value} = {i};\n")
+    fd.write(f"{indent}}}\n")
+
+
 def print_messages(
-    nodes: tuple[VSSNode], fd: TextIOWrapper, static_uid: bool, add_optional: bool, include_comments: bool
+    nodes: tuple[VSSNode],
+    fd: TextIOWrapper,
+    static_uid: bool,
+    add_optional: bool,
+    include_comments: bool,
+    generate_enums: bool,
 ):
     usedKeys: dict[int, str] = {}
     for i, node in enumerate(nodes, 1):
+        is_string_enum = (
+            generate_enums
+            and isinstance(node.data, VSSDataDatatype)
+            and node.data.datatype.strip("[]") == "string"
+            and node.data.allowed is not None
+        )
         if isinstance(node.data, VSSDataDatatype):
             dt_val = node.data.datatype
-            data_type = mapped.get(dt_val.strip("[]"), dt_val.strip("[]"))
+            if is_string_enum:
+                data_type = node.name
+            else:
+                data_type = mapped.get(dt_val.strip("[]"), dt_val.strip("[]"))
             if dt_val.endswith("[]"):
                 data_type = "repeated " + data_type
             elif add_optional:
@@ -208,6 +245,8 @@ def print_messages(
             fieldNumber = i
         if include_comments:
             write_comment(fd, node)
+        if is_string_enum:
+            write_enum(fd, node)
         fd.write(f"  {data_type} {node.name} = {fieldNumber};" + "\n")
 
 
@@ -235,6 +274,7 @@ def print_messages(
 )
 @click.option("--add-optional", is_flag=True, help="Set each field to 'optional'")
 @click.option("--include-comments", is_flag=True, help="Include descriptions and metadata as comments")
+@click.option("--generate-enums", is_flag=True, help="Generate enums for string fields with allowed values")
 def cli(
     vspec: Path,
     output: Path,
@@ -250,6 +290,7 @@ def cli(
     static_uid: bool,
     add_optional: bool,
     include_comments: bool,
+    generate_enums: bool,
     strict_exceptions: Path | None,
 ):
     """
@@ -272,8 +313,8 @@ def cli(
         if not types_out_dir:
             types_out_dir = Path.cwd()
             log.warning(f"No output directory given. Writing to: {types_out_dir.absolute()}")
-        traverse_data_type_tree(datatype_tree, static_uid, add_optional, include_comments, types_out_dir)
+        traverse_data_type_tree(datatype_tree, static_uid, add_optional, include_comments, generate_enums, types_out_dir)
 
     with open(output, "w") as f:
         log.info(f"Writing to: {output}")
-        traverse_signal_tree(tree, f, static_uid, add_optional, include_comments)
+        traverse_signal_tree(tree, f, static_uid, add_optional, include_comments, generate_enums)

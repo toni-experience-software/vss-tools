@@ -16,6 +16,7 @@ This example assumes that you checked out the COVESA VSS repository next to the 
 --static-uid          Expect staticUID attribute in the vspec input and use it as field number.
 --add-optional        Set each field to optional
 --include-comments    Include descriptions and metadata as comments in the generated proto files
+--generate-enums     Generate protobuf enums for string fields with allowed values
 ```
 
 ## Field Numbers and Backwards Compatibility
@@ -119,5 +120,38 @@ The generated proto output with `--include-comments` would be:
   // Media selected for playback
   //
   // Allowed: ['UNKNOWN', 'SIRIUS_XM', 'AM', 'FM', 'DAB', 'TV', 'CD', 'DVD', 'AUX', 'USB', 'DISK', 'BLUETOOTH', 'INTERNET', 'VOICE', 'BEEP']
+  string Source = 1;
+```
+
+## Generate enums
+
+Use the `--generate-enums` flag to generate protobuf enum types for string fields that have `allowed` values defined. Each enum includes a `_UNSPECIFIED = 0` default value (as required by proto3) followed by the allowed values. Non-string fields and string fields without `allowed` are unaffected.
+
+For example, given a vspec entry:
+
+```yaml
+Media.Played.Source:
+  datatype: string
+  type: actuator
+  allowed: ['UNKNOWN', 'SIRIUS_XM', 'AM', 'FM']
+  description: Media selected for playback
+```
+
+The generated proto output with `--generate-enums` would be:
+
+```proto
+  enum Source {
+    SOURCE_UNSPECIFIED = 0;
+    SOURCE_UNKNOWN = 1;
+    SOURCE_SIRIUS_XM = 2;
+    SOURCE_AM = 3;
+    SOURCE_FM = 4;
+  }
+  Source Source = 1;
+```
+
+Without the flag, the field is generated as a plain `string`:
+
+```proto
   string Source = 1;
 ```

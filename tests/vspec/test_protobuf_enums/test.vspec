@@ -1,0 +1,20 @@
+A:
+  type: branch
+  description: A is a test branch
+
+A.Source:
+  datatype: string
+  type: actuator
+  allowed: ['UNKNOWN', 'AM', 'FM', 'DAB']
+  description: Media source
+
+A.PlainString:
+  datatype: string
+  type: sensor
+  description: A plain string without allowed
+
+A.IntValue:
+  datatype: uint8
+  type: sensor
+  unit: percent
+  description: A non-string field
