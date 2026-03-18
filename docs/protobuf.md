@@ -125,7 +125,7 @@ The generated proto output with `--include-comments` would be:
 
 ## Generate enums
 
-Use the `--generate-enums` flag to generate protobuf enum types for string fields that have `allowed` values defined. Each enum includes a `_UNSPECIFIED = 0` default value (as required by proto3) followed by the allowed values. Non-string fields and string fields without `allowed` are unaffected.
+Use the `--generate-enums` flag to generate protobuf enum types for string fields that have `allowed` values defined. The enum name is composed of the parent message name and the field name (e.g., `MessageNameFieldName`). Each enum includes an `UNSPECIFIED = 0` default value (as required by proto3) followed by the allowed values. Non-string fields and string fields without `allowed` are unaffected.
 
 For example, given a vspec entry:
 
@@ -137,17 +137,20 @@ Media.Played.Source:
   description: Media selected for playback
 ```
 
-The generated proto output with `--generate-enums` would be:
+The generated proto output with `--generate-enums` would be (assuming `MediaPlayed` is the parent message):
 
 ```proto
-  enum Source {
-    SOURCE_UNSPECIFIED = 0;
-    SOURCE_UNKNOWN = 1;
-    SOURCE_SIRIUS_XM = 2;
-    SOURCE_AM = 3;
-    SOURCE_FM = 4;
+message MediaPlayed {
+  enum MediaPlayedSource {
+    UNSPECIFIED = 0;
+    UNKNOWN = 1;
+    SIRIUS_XM = 2;
+    AM = 3;
+    FM = 4;
   }
-  Source Source = 1;
+
+  MediaPlayedSource Source = 1;
+}
 ```
 
 Without the flag, the field is generated as a plain `string`:

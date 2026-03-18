@@ -2,14 +2,15 @@ syntax = "proto3";
 
 
 message A {
-  enum Source {
-    SOURCE_UNSPECIFIED = 0;
-    SOURCE_UNKNOWN = 1;
-    SOURCE_AM = 2;
-    SOURCE_FM = 3;
-    SOURCE_DAB = 4;
+  enum ASource {
+    UNSPECIFIED = 0;
+    UNKNOWN = 1;
+    AM = 2;
+    FM = 3;
+    DAB = 4;
   }
-  Source Source = 1;
+
+  ASource Source = 1;
   string PlainString = 2;
   uint32 IntValue = 3;
 }
