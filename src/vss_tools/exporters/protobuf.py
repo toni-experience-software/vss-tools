@@ -9,6 +9,7 @@
 # Convert vspec file to proto
 #
 
+import re
 import sys
 from io import TextIOWrapper
 from pathlib import Path
@@ -167,15 +168,23 @@ def write_comment(fd: TextIOWrapper, node: VSSNode, indent: str = "  "):
             fd.write(f"{indent}// {line}\n")
 
 
+def _to_screaming_snake_case(name: str) -> str:
+    """Convert PascalCase/camelCase to SCREAMING_SNAKE_CASE."""
+    s = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name)
+    s = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", s)
+    return s.upper()
+
+
 def write_enum(fd: TextIOWrapper, node: VSSNode, message_name: str):
     """Write a protobuf enum definition for a string field with allowed values."""
     if not isinstance(node.data, VSSDataDatatype) or node.data.allowed is None:
         return
     enum_name = f"{message_name}{node.name}"
+    prefix = _to_screaming_snake_case(enum_name)
     fd.write(f"enum {enum_name} {{\n")
-    fd.write("  UNSPECIFIED = 0;\n")
+    fd.write(f"  {prefix}_UNSPECIFIED = 0;\n")
     for i, value in enumerate(node.data.allowed, 1):
-        fd.write(f"  {value} = {i};\n")
+        fd.write(f"  {prefix}_{value} = {i};\n")
     fd.write("}\n\n")
 
 

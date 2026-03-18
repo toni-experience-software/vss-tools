@@ -141,11 +141,11 @@ The generated proto output with `--generate-enums` would be (assuming `MediaPlay
 
 ```proto
 enum MediaPlayedSource {
-  UNSPECIFIED = 0;
-  UNKNOWN = 1;
-  SIRIUS_XM = 2;
-  AM = 3;
-  FM = 4;
+  MEDIA_PLAYED_SOURCE_UNSPECIFIED = 0;
+  MEDIA_PLAYED_SOURCE_UNKNOWN = 1;
+  MEDIA_PLAYED_SOURCE_SIRIUS_XM = 2;
+  MEDIA_PLAYED_SOURCE_AM = 3;
+  MEDIA_PLAYED_SOURCE_FM = 4;
 }
 
 message MediaPlayed {
