@@ -1,0 +1,23 @@
+A:
+  type: branch
+  description: Branch A
+
+A.Source:
+  datatype: string
+  type: actuator
+  allowed: ['UNKNOWN', 'AM', 'FM']
+  description: Media source
+
+A.PlainString:
+  datatype: string
+  type: sensor
+  description: A plain string without allowed
+
+A.B:
+  type: branch
+  description: Sub-branch B
+
+A.B.Value:
+  datatype: uint8
+  type: sensor
+  description: A value

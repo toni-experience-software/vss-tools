@@ -17,6 +17,7 @@ This example assumes that you checked out the COVESA VSS repository next to the 
 --add-optional        Set each field to optional
 --include-comments    Include descriptions and metadata as comments in the generated proto files
 --generate-enums     Generate protobuf enums for string fields with allowed values
+--split              Split output into one .proto file per branch (output becomes a directory)
 ```
 
 ## Field Numbers and Backwards Compatibility
@@ -158,3 +159,53 @@ Without the flag, the field is generated as a plain `string`:
 ```proto
   string Source = 1;
 ```
+
+## Split output into multiple files
+
+By default, all messages are written to a single `.proto` file. Use the `--split` flag to generate one `.proto` file per branch, all flat in the output directory. When `--split` is used, the `--output` path is treated as a directory.
+
+Each file uses the parent branch's fully qualified name as the protobuf `package`. This scopes enum names and values to their package, resulting in much shorter identifiers compared to the single-file approach.
+
+For example, given:
+
+```yaml
+Vehicle:
+  type: branch
+Vehicle.Body:
+  type: branch
+Vehicle.Body.Type:
+  datatype: string
+  type: attribute
+  allowed: ['SEDAN', 'SUV', 'TRUCK']
+```
+
+Without `--split`, the enum in a single file would need the full path as prefix:
+
+```proto
+enum VehicleBodyType {
+  VEHICLE_BODY_TYPE_UNSPECIFIED = 0;
+  VEHICLE_BODY_TYPE_SEDAN = 1;
+  ...
+}
+```
+
+With `--split --generate-enums`, the output directory contains `Vehicle.Body.proto` with:
+
+```proto
+syntax = "proto3";
+
+package Vehicle;
+
+enum BodyType {
+  BODY_TYPE_UNSPECIFIED = 0;
+  BODY_TYPE_SEDAN = 1;
+  BODY_TYPE_SUV = 2;
+  BODY_TYPE_TRUCK = 3;
+}
+
+message Body {
+  BodyType Type = 1;
+}
+```
+
+Branch children reference other files using dotted fully qualified names (e.g., `Vehicle.Body` as a type), and require corresponding `import` statements in the referencing file.

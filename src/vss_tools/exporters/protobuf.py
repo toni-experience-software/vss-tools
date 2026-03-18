@@ -209,6 +209,7 @@ def print_messages(
     include_comments: bool,
     generate_enums: bool,
     message_name: str = "",
+    split: bool = False,
 ):
     usedKeys: dict[int, str] = {}
     for i, node in enumerate(nodes, 1):
@@ -229,7 +230,10 @@ def print_messages(
             elif add_optional:
                 data_type = "optional " + data_type
         else:
-            data_type = node.get_fqn("")
+            if split:
+                data_type = node.get_fqn(".")
+            else:
+                data_type = node.get_fqn("")
             if add_optional:
                 data_type = "optional " + data_type
         if static_uid:
@@ -265,6 +269,60 @@ def print_messages(
         fd.write(f"  {data_type} {node.name} = {fieldNumber};" + "\n")
 
 
+def traverse_signal_tree_split(
+    tree: VSSNode,
+    out_dir: Path,
+    static_uid: bool,
+    add_optional: bool,
+    include_comments: bool,
+    generate_enums: bool,
+):
+    """Write one .proto file per branch, flat in out_dir.
+
+    Each file uses the parent's FQN as package, so enum names
+    and values only need the short leaf-level prefix.
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    for node in findall(tree, filter_=lambda n: isinstance(n.data, VSSDataBranch)):
+        fqn_dotted = node.get_fqn(".")
+        file_path = out_dir / f"{fqn_dotted}.proto"
+
+        with open(file_path, "w") as fd:
+            fd.write('syntax = "proto3";\n\n')
+
+            # Package is the parent's FQN (root has no package)
+            parts = fqn_dotted.split(".")
+            if len(parts) > 1:
+                parent_package = ".".join(parts[:-1])
+                fd.write(f"package {parent_package};\n\n")
+
+            # Collect imports
+            imports: list[str] = []
+            for child in node.children:
+                if isinstance(child.data, VSSDataBranch):
+                    imports.append(f"{child.get_fqn('.')}.proto")
+                elif isinstance(child.data, VSSDataDatatype):
+                    datatype = child.data.datatype
+                    if "." in datatype:
+                        struct_path = Path(datatype.replace(".", "/"))
+                        imports.append(f"{struct_path.parent}/{struct_path.parent.name}.proto")
+            write_imports(fd, imports)
+
+            if include_comments:
+                write_comment(fd, node, indent="")
+
+            write_enums(node.children, fd, generate_enums, node.name)
+
+            fd.write(f"message {node.name} {{" + "\n")
+            print_messages(
+                node.children, fd, static_uid, add_optional,
+                include_comments, generate_enums, node.name, split=True,
+            )
+            fd.write("}\n\n")
+            log.info(f"Wrote {node.name} to {file_path}")
+
+
 @click.command()
 @clo.vspec_opt
 @clo.output_required_opt
@@ -290,6 +348,7 @@ def print_messages(
 @click.option("--add-optional", is_flag=True, help="Set each field to 'optional'")
 @click.option("--include-comments", is_flag=True, help="Include descriptions and metadata as comments")
 @click.option("--generate-enums", is_flag=True, help="Generate enums for string fields with allowed values")
+@click.option("--split", is_flag=True, help="Split output into one .proto file per branch (output becomes a directory)")
 def cli(
     vspec: Path,
     output: Path,
@@ -306,6 +365,7 @@ def cli(
     add_optional: bool,
     include_comments: bool,
     generate_enums: bool,
+    split: bool,
     strict_exceptions: Path | None,
 ):
     """
@@ -330,6 +390,11 @@ def cli(
             log.warning(f"No output directory given. Writing to: {types_out_dir.absolute()}")
         traverse_data_type_tree(datatype_tree, static_uid, add_optional, include_comments, generate_enums, types_out_dir)
 
-    with open(output, "w") as f:
-        log.info(f"Writing to: {output}")
-        traverse_signal_tree(tree, f, static_uid, add_optional, include_comments, generate_enums)
+    if split:
+        out_dir = output if output.suffix == "" else output.parent / output.stem
+        log.info(f"Splitting output to: {out_dir}")
+        traverse_signal_tree_split(tree, out_dir, static_uid, add_optional, include_comments, generate_enums)
+    else:
+        with open(output, "w") as f:
+            log.info(f"Writing to: {output}")
+            traverse_signal_tree(tree, f, static_uid, add_optional, include_comments, generate_enums)
