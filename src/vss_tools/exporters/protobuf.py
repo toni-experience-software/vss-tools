@@ -166,22 +166,14 @@ def write_comment(fd: TextIOWrapper, node: VSSNode, indent: str = "  "):
             fd.write(f"{indent}// {line}\n")
 
 
-def _to_screaming_snake_case(name: str) -> str:
-    """Convert PascalCase/camelCase to SCREAMING_SNAKE_CASE."""
-    s = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name)
-    s = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", s)
-    return s.upper()
-
-
 def write_enum(fd: TextIOWrapper, node: VSSNode, indent: str = "  "):
     """Write a protobuf enum definition for a string field with allowed values."""
     if not isinstance(node.data, VSSDataDatatype) or node.data.allowed is None:
         return
-    prefix = _to_screaming_snake_case(node.name)
     fd.write(f"{indent}enum {node.name} {{\n")
-    fd.write(f"{indent}  {prefix}_UNSPECIFIED = 0;\n")
+    fd.write(f"{indent}  UNSPECIFIED = 0;\n")
     for i, value in enumerate(node.data.allowed, 1):
-        fd.write(f"{indent}  {prefix}_{value} = {i};\n")
+        fd.write(f"{indent}  {value} = {i};\n")
     fd.write(f"{indent}}}\n")
 
 
