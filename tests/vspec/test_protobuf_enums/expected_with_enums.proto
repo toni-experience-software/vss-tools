@@ -1,15 +1,15 @@
 syntax = "proto3";
 
 
-message A {
-  enum ASource {
-    UNSPECIFIED = 0;
-    UNKNOWN = 1;
-    AM = 2;
-    FM = 3;
-    DAB = 4;
-  }
+enum ASource {
+  UNSPECIFIED = 0;
+  UNKNOWN = 1;
+  AM = 2;
+  FM = 3;
+  DAB = 4;
+}
 
+message A {
   ASource Source = 1;
   string PlainString = 2;
   uint32 IntValue = 3;

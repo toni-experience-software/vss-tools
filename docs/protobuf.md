@@ -140,15 +140,15 @@ Media.Played.Source:
 The generated proto output with `--generate-enums` would be (assuming `MediaPlayed` is the parent message):
 
 ```proto
-message MediaPlayed {
-  enum MediaPlayedSource {
-    UNSPECIFIED = 0;
-    UNKNOWN = 1;
-    SIRIUS_XM = 2;
-    AM = 3;
-    FM = 4;
-  }
+enum MediaPlayedSource {
+  UNSPECIFIED = 0;
+  UNKNOWN = 1;
+  SIRIUS_XM = 2;
+  AM = 3;
+  FM = 4;
+}
 
+message MediaPlayed {
   MediaPlayedSource Source = 1;
 }
 ```

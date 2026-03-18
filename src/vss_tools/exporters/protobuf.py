@@ -91,6 +91,7 @@ def traverse_data_type_tree(
 
             if include_comments:
                 write_comment(fd, node, indent="")
+            write_enums(node.children, fd, generate_enums, struct_path.name)
             fd.write(f"message {struct_path.name} {{" + "\n")
             print_messages(node.children, fd, static_uid, add_optional, include_comments, generate_enums, struct_path.name)
             fd.write("}\n\n")
@@ -120,6 +121,7 @@ def traverse_signal_tree(
     for node in findall(tree, filter_=lambda node: isinstance(node.data, VSSDataBranch)):
         if include_comments:
             write_comment(fd, node, indent="")
+        write_enums(node.children, fd, generate_enums, node.get_fqn(''))
         fd.write(f"message {node.get_fqn('')} {{" + "\n")
         print_messages(node.children, fd, static_uid, add_optional, include_comments, generate_enums, node.get_fqn(''))
         fd.write("}\n\n")
@@ -165,16 +167,29 @@ def write_comment(fd: TextIOWrapper, node: VSSNode, indent: str = "  "):
             fd.write(f"{indent}// {line}\n")
 
 
-def write_enum(fd: TextIOWrapper, node: VSSNode, message_name: str, indent: str = "  "):
+def write_enum(fd: TextIOWrapper, node: VSSNode, message_name: str):
     """Write a protobuf enum definition for a string field with allowed values."""
     if not isinstance(node.data, VSSDataDatatype) or node.data.allowed is None:
         return
     enum_name = f"{message_name}{node.name}"
-    fd.write(f"{indent}enum {enum_name} {{\n")
-    fd.write(f"{indent}  UNSPECIFIED = 0;\n")
+    fd.write(f"enum {enum_name} {{\n")
+    fd.write("  UNSPECIFIED = 0;\n")
     for i, value in enumerate(node.data.allowed, 1):
-        fd.write(f"{indent}  {value} = {i};\n")
-    fd.write(f"{indent}}}\n\n")
+        fd.write(f"  {value} = {i};\n")
+    fd.write("}\n\n")
+
+
+def write_enums(nodes: tuple[VSSNode], fd: TextIOWrapper, generate_enums: bool, message_name: str):
+    """Write all enum definitions for string fields with allowed values before the message block."""
+    if not generate_enums:
+        return
+    for node in nodes:
+        if (
+            isinstance(node.data, VSSDataDatatype)
+            and node.data.datatype.strip("[]") == "string"
+            and node.data.allowed is not None
+        ):
+            write_enum(fd, node, message_name)
 
 
 def print_messages(
@@ -238,8 +253,6 @@ def print_messages(
             fieldNumber = i
         if include_comments:
             write_comment(fd, node)
-        if is_string_enum:
-            write_enum(fd, node, message_name)
         fd.write(f"  {data_type} {node.name} = {fieldNumber};" + "\n")
 
 
